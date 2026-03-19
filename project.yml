@@ -1,0 +1,6 @@
+packages:
+  - name: default
+    functions:
+      - name: highscore
+        runtime: nodejs:18
+        web: true

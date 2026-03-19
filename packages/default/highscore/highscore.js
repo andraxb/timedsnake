@@ -1,5 +1,4 @@
 const fs = require('fs');
-const path = require('path');
 
 const DATA_FILE = '/tmp/highscores.json';
 const MAX_ENTRIES = 50;
@@ -22,29 +21,31 @@ function sanitize(str) {
   return String(str).replace(/[<>&"']/g, '').trim().slice(0, MAX_USERNAME_LEN);
 }
 
-exports.main = async function main(args) {
-  const method = args.__ow_method || 'get';
-
-  const headers = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
+function respond(statusCode, body) {
+  return {
+    statusCode,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    },
+    body
   };
+}
+
+exports.main = async function main(args) {
+  const method = (args.__ow_method || 'get').toLowerCase();
 
   // Handle CORS preflight
   if (method === 'options') {
-    return { statusCode: 204, headers, body: '' };
+    return respond(204, undefined);
   }
 
   // GET — return scores
   if (method === 'get') {
     const scores = loadScores();
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ scores })
-    };
+    return respond(200, { scores });
   }
 
   // POST — submit a score
@@ -57,23 +58,22 @@ exports.main = async function main(args) {
       score = args.score;
     } else if (args.__ow_body) {
       try {
-        const body = JSON.parse(
-          Buffer.from(args.__ow_body, 'base64').toString('utf8')
-        );
+        const parsed = Buffer.from(args.__ow_body, 'base64').toString('utf8');
+        const body = JSON.parse(parsed);
         username = body.username;
         score = body.score;
       } catch {
-        return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid JSON' }) };
+        return respond(400, { error: 'Invalid JSON' });
       }
     } else {
-      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing body' }) };
+      return respond(400, { error: 'Missing body' });
     }
 
     username = sanitize(username);
     score = parseInt(score, 10);
 
     if (!username || isNaN(score) || score < 0 || score > MAX_SCORE) {
-      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid username or score' }) };
+      return respond(400, { error: 'Invalid username or score' });
     }
 
     const scores = loadScores();
@@ -96,12 +96,8 @@ exports.main = async function main(args) {
 
     saveScores(scores);
 
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ ok: true })
-    };
+    return respond(200, { ok: true });
   }
 
-  return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
+  return respond(405, { error: 'Method not allowed' });
 };

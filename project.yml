@@ -1,6 +1,5 @@
 packages:
   - name: default
-    functions:
+    actions:
       - name: highscore
-        runtime: nodejs:18
-        web: true
+        runtime: 'nodejs:default'

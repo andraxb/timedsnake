@@ -1,6 +1,8 @@
 const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
-const DATA_FILE = '/tmp/highscores.json';
+const DATA_FILE = path.join(os.tmpdir(), 'highscores.json');
 const MAX_ENTRIES = 50;
 const MAX_USERNAME_LEN = 20;
 const MAX_SCORE = 999999;

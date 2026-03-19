@@ -526,8 +526,11 @@ document.getElementById('highscore-close').addEventListener('click', () => {
 async function submitScore(s) {
   if (!API_URL || s <= 0) return;
   try {
-    const params = new URLSearchParams({ username, score: s });
-    await fetch(`${API_URL}?${params}`);
+    await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, score: s })
+    });
   } catch (err) {
     console.warn('Could not submit score:', err);
   }

@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Timed Snake</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #111;
+    color: #eee;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  #game-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #hud {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 400px;
+    padding: 8px 4px;
+  }
+
+  #hud span {
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  #timer { color: #f55; }
+  #score { color: #5f5; }
+  #username-display { color: #5bf; font-size: 14px !important; }
+
+  canvas {
+    border: 2px solid #333;
+    background: #1a1a1a;
+    display: block;
+  }
+
+  #message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  #message h2 {
+    font-size: 32px;
+    margin-bottom: 8px;
+  }
+
+  #message p {
+    font-size: 16px;
+    color: #aaa;
+  }
+
+  /* Hamburger menu */
+  #menu-btn {
+    position: absolute;
+    top: 0;
+    right: -44px;
+    width: 36px;
+    height: 36px;
+    background: none;
+    border: 1px solid #444;
+    border-radius: 6px;
+    color: #ccc;
+    font-size: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+  }
+
+  #menu-btn:hover { background: #333; }
+
+  #menu-dropdown {
+    display: none;
+    position: absolute;
+    top: 40px;
+    right: -44px;
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 8px;
+    min-width: 200px;
+    z-index: 20;
+    overflow: hidden;
+  }
+
+  #menu-dropdown.open { display: block; }
+
+  #menu-dropdown button {
+    display: block;
+    width: 100%;
+    padding: 12px 16px;
+    background: none;
+    border: none;
+    color: #ddd;
+    font-size: 15px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  #menu-dropdown button:hover { background: #333; }
+
+  /* Overlay (high scores & username input) */
+  .overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 50;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .overlay.open { display: flex; }
+
+  .overlay-box {
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 12px;
+    padding: 24px 32px;
+    min-width: 320px;
+    max-width: 420px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  .overlay-box h3 {
+    margin-bottom: 16px;
+    font-size: 20px;
+  }
+
+  .overlay-box table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .overlay-box th, .overlay-box td {
+    padding: 6px 10px;
+    text-align: left;
+    border-bottom: 1px solid #333;
+    font-size: 14px;
+  }
+
+  .overlay-box th { color: #aaa; }
+
+  .overlay-box input[type="text"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #555;
+    border-radius: 6px;
+    background: #1a1a1a;
+    color: #eee;
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+
+  .overlay-box .btn-row {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .overlay-box button {
+    padding: 8px 18px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .btn-primary { background: #5b5; color: #111; font-weight: 600; }
+  .btn-secondary { background: #444; color: #ddd; }
+
+  #multiplier-bar {
+    width: 400px;
+    padding: 6px 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #f0c040;
+    text-align: center;
+    min-height: 28px;
+  }
+
+  #highscore-status {
+    color: #aaa;
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+
+<div id="game-wrapper">
+  <div id="hud">
+    <span id="username-display"></span>
+    <span id="score">Score: 0</span>
+    <span id="timer">1:00</span>
+  </div>
+  <canvas id="canvas" width="400" height="400"></canvas>
+  <div id="multiplier-bar"></div>
+  <div id="message"></div>
+
+  <button id="menu-btn">&#9776;</button>
+  <div id="menu-dropdown">
+    <button id="menu-restart">Restart Game</button>
+    <button id="menu-username">Enter Username</button>
+    <button id="menu-highscore">Show High Scores</button>
+  </div>
+</div>
+
+<!-- Username overlay -->
+<div class="overlay" id="username-overlay">
+  <div class="overlay-box">
+    <h3>Enter Username</h3>
+    <input type="text" id="username-input" maxlength="20" placeholder="Your name...">
+    <div class="btn-row">
+      <button class="btn-secondary" id="username-cancel">Cancel</button>
+      <button class="btn-primary" id="username-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- High score overlay -->
+<div class="overlay" id="highscore-overlay">
+  <div class="overlay-box">
+    <h3>High Scores</h3>
+    <p id="highscore-status">Loading...</p>
+    <table id="highscore-table">
+      <thead><tr><th>#</th><th>Player</th><th>Score</th></tr></thead>
+      <tbody id="highscore-body"></tbody>
+    </table>
+    <br>
+    <div class="btn-row">
+      <button class="btn-secondary" id="highscore-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────────────
+const API_URL = ''; // Set to your DigitalOcean Function URL, e.g. 'https://faas-xxx.doserverless.co/api/v1/web/fn-xxx/default/highscore'
+const GRID      = 20;
+const TILE      = 20; // canvas 400 / 20 = 20 tiles
+const GAME_TIME = 60; // seconds
+const TICK_MS   = 120;
+
+// ── Silly name generator ────────────────────────────────────────────
+const ADJ = ['Turbo','Sneaky','Hyper','Cosmic','Dizzy','Funky','Pixel','Wobbly','Mega','Zippy','Cranky','Crunchy','Sparkly','Grumpy','Bouncy','Salty','Fuzzy','Silly','Spicy','Gnarly'];
+const NOUN = ['Penguin','Waffle','Goblin','Noodle','Potato','Pickle','Muffin','Cactus','Nugget','Toaster','Badger','Donut','Taco','Wizard','Llama','Pretzel','Turnip','Hamster','Walrus','Burrito'];
+
+function randomName() {
+  const a = ADJ[Math.floor(Math.random() * ADJ.length)];
+  const n = NOUN[Math.floor(Math.random() * NOUN.length)];
+  const d = Math.floor(Math.random() * 100);
+  return `${a}${n}${d}`;
+}
+
+// ── State ───────────────────────────────────────────────────────────
+let username = localStorage.getItem('snake_username') || randomName();
+localStorage.setItem('snake_username', username);
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let snake, dir, nextDir, food, score, totalScore, foodEaten, timeLeft, gameOver, started, tickTimer, countdownTimer;
+
+function init() {
+  snake = [{ x: 10, y: 10 }];
+  dir = { x: 1, y: 0 };
+  nextDir = { x: 1, y: 0 };
+  score = 0;
+  totalScore = 0;
+  foodEaten = 0;
+  timeLeft = GAME_TIME;
+  gameOver = false;
+  started = false;
+  clearInterval(tickTimer);
+  clearInterval(countdownTimer);
+  placeFood();
+  updateHud();
+  draw();
+  showMessage('Timed Snake', 'Press any arrow / WASD key to start');
+}
+
+function placeFood() {
+  while (true) {
+    food = { x: Math.floor(Math.random() * GRID), y: Math.floor(Math.random() * GRID) };
+    if (!snake.some(s => s.x === food.x && s.y === food.y)) break;
+  }
+}
+
+function getMultiplier() {
+  const tier = Math.floor(foodEaten / 5);
+  return 1 + tier * 0.25;
+}
+
+// ── Game loop ───────────────────────────────────────────────────────
+function start() {
+  if (started) return;
+  started = true;
+  hideMessage();
+  tickTimer = setInterval(tick, TICK_MS);
+  countdownTimer = setInterval(() => {
+    timeLeft--;
+    updateHud();
+    if (timeLeft <= 0) endGame();
+  }, 1000);
+}
+
+function tick() {
+  if (gameOver) return;
+  dir = { ...nextDir };
+  const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+  // Wall collision
+  if (head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID) {
+    return endRound();
+  }
+  // Self collision
+  if (snake.some(s => s.x === head.x && s.y === head.y)) {
+    return endRound();
+  }
+
+  snake.unshift(head);
+
+  if (head.x === food.x && head.y === food.y) {
+    foodEaten++;
+    const points = getMultiplier();
+    score = Math.round((score + points) * 100) / 100;
+    totalScore = Math.round((totalScore + points) * 100) / 100;
+    updateHud();
+    placeFood();
+  } else {
+    snake.pop();
+  }
+
+  draw();
+}
+
+function endRound() {
+  // Snake dies but timer keeps going — total keeps accumulating, multiplier resets
+  score = 0;
+  foodEaten = 0;
+  snake = [{ x: 10, y: 10 }];
+  dir = { x: 1, y: 0 };
+  nextDir = { x: 1, y: 0 };
+  placeFood();
+  updateHud();
+  draw();
+}
+
+function endGame() {
+  gameOver = true;
+  clearInterval(tickTimer);
+  clearInterval(countdownTimer);
+  showMessage(`Time's up!  Total: ${totalScore}`, 'Press SPACE to play again');
+  submitScore(totalScore);
+}
+
+function restartRound() {
+  if (!gameOver) {
+    // mid-game quick restart of the snake (round score resets, total keeps accumulating)
+    score = 0;
+    foodEaten = 0;
+    snake = [{ x: 10, y: 10 }];
+    dir = { x: 1, y: 0 };
+    nextDir = { x: 1, y: 0 };
+    placeFood();
+    updateHud();
+    draw();
+  } else {
+    // full restart after time's up
+    init();
+  }
+}
+
+// ── Rendering ───────────────────────────────────────────────────────
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Grid lines (subtle)
+  ctx.strokeStyle = '#222';
+  for (let i = 0; i <= GRID; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * TILE, 0);
+    ctx.lineTo(i * TILE, canvas.height);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, i * TILE);
+    ctx.lineTo(canvas.width, i * TILE);
+    ctx.stroke();
+  }
+
+  // Food
+  ctx.fillStyle = '#f44';
+  ctx.beginPath();
+  ctx.arc(food.x * TILE + TILE / 2, food.y * TILE + TILE / 2, TILE / 2 - 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Snake
+  snake.forEach((s, i) => {
+    ctx.fillStyle = i === 0 ? '#5f5' : '#3a3';
+    ctx.fillRect(s.x * TILE + 1, s.y * TILE + 1, TILE - 2, TILE - 2);
+  });
+}
+
+function updateHud() {
+  const m = Math.floor(timeLeft / 60);
+  const s = String(timeLeft % 60).padStart(2, '0');
+  document.getElementById('timer').textContent = `${m}:${s}`;
+  document.getElementById('score').textContent = `Score: ${score}  |  Total: ${totalScore}`;
+  document.getElementById('username-display').textContent = username;
+
+  const mult = getMultiplier();
+  const bar = document.getElementById('multiplier-bar');
+  if (mult > 1) {
+    const nextAt = (Math.floor(foodEaten / 5) + 1) * 5;
+    bar.textContent = `${mult}x multiplier  ·  next at ${nextAt} food`;
+  } else {
+    const nextAt = 5;
+    bar.textContent = foodEaten > 0 ? `1x  ·  next multiplier at ${nextAt} food` : '';
+  }
+}
+
+function showMessage(title, sub) {
+  const el = document.getElementById('message');
+  el.innerHTML = `<h2>${title}</h2><p>${sub}</p>`;
+}
+
+function hideMessage() {
+  document.getElementById('message').innerHTML = '';
+}
+
+// ── Input ───────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  // Ignore keys when overlays are open
+  if (document.querySelector('.overlay.open')) return;
+
+  const key = e.key;
+
+  if (key === ' ') {
+    e.preventDefault();
+    restartRound();
+    return;
+  }
+
+  let nd = null;
+  if ((key === 'ArrowUp'    || key === 'w') && dir.y !== 1)  nd = { x:  0, y: -1 };
+  if ((key === 'ArrowDown'  || key === 's') && dir.y !== -1) nd = { x:  0, y:  1 };
+  if ((key === 'ArrowLeft'  || key === 'a') && dir.x !== 1)  nd = { x: -1, y:  0 };
+  if ((key === 'ArrowRight' || key === 'd') && dir.x !== -1) nd = { x:  1, y:  0 };
+
+  if (nd) {
+    nextDir = nd;
+    if (!started && !gameOver) start();
+  }
+});
+
+// ── Menu ────────────────────────────────────────────────────────────
+const menuBtn = document.getElementById('menu-btn');
+const menuDrop = document.getElementById('menu-dropdown');
+
+menuBtn.addEventListener('click', () => menuDrop.classList.toggle('open'));
+document.addEventListener('click', e => {
+  if (!menuBtn.contains(e.target) && !menuDrop.contains(e.target)) {
+    menuDrop.classList.remove('open');
+  }
+});
+
+document.getElementById('menu-restart').addEventListener('click', () => {
+  location.reload();
+});
+
+// Username
+document.getElementById('menu-username').addEventListener('click', () => {
+  menuDrop.classList.remove('open');
+  document.getElementById('username-input').value = username;
+  document.getElementById('username-overlay').classList.add('open');
+});
+
+document.getElementById('username-cancel').addEventListener('click', () => {
+  document.getElementById('username-overlay').classList.remove('open');
+});
+
+document.getElementById('username-save').addEventListener('click', () => {
+  const v = document.getElementById('username-input').value.trim();
+  if (v) {
+    username = v;
+    localStorage.setItem('snake_username', username);
+    updateHud();
+  }
+  document.getElementById('username-overlay').classList.remove('open');
+});
+
+// High scores
+document.getElementById('menu-highscore').addEventListener('click', () => {
+  menuDrop.classList.remove('open');
+  document.getElementById('highscore-overlay').classList.add('open');
+  loadHighScores();
+});
+
+document.getElementById('highscore-close').addEventListener('click', () => {
+  document.getElementById('highscore-overlay').classList.remove('open');
+});
+
+// ── High score API ──────────────────────────────────────────────────
+async function submitScore(s) {
+  if (!API_URL || s <= 0) return;
+  try {
+    await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, score: s })
+    });
+  } catch (err) {
+    console.warn('Could not submit score:', err);
+  }
+}
+
+async function loadHighScores() {
+  const status = document.getElementById('highscore-status');
+  const tbody = document.getElementById('highscore-body');
+  tbody.innerHTML = '';
+
+  if (!API_URL) {
+    status.textContent = 'No API configured — set API_URL in the script.';
+    return;
+  }
+
+  status.textContent = 'Loading...';
+  try {
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    status.textContent = '';
+    if (!data.scores || data.scores.length === 0) {
+      status.textContent = 'No scores yet.';
+      return;
+    }
+    data.scores.forEach((entry, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${i + 1}</td><td>${esc(entry.username)}</td><td>${entry.score}</td>`;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    status.textContent = 'Failed to load scores.';
+  }
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ── Start ───────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

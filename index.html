@@ -261,7 +261,9 @@ const API_URL = 'https://timed-snake-iz4n5.ondigitalocean.app/timedsnake2/defaul
 const GRID      = 20;
 const TILE      = 20; // canvas 400 / 20 = 20 tiles
 const GAME_TIME = 60; // seconds
-const TICK_MS   = 120;
+const TICK_MS_START = 120;
+const TICK_MS_MIN   = 50;
+const TICK_SPEEDUP  = 5; // ms faster per food eaten
 
 // ── Silly name generator ────────────────────────────────────────────
 const ADJ = ['Turbo','Sneaky','Hyper','Cosmic','Dizzy','Funky','Pixel','Wobbly','Mega','Zippy','Cranky','Crunchy','Sparkly','Grumpy','Bouncy','Salty','Fuzzy','Silly','Spicy','Gnarly'];
@@ -313,12 +315,21 @@ function getMultiplier() {
   return 1 + tier * 0.25;
 }
 
+function getCurrentTickMs() {
+  return Math.max(TICK_MS_MIN, TICK_MS_START - foodEaten * TICK_SPEEDUP);
+}
+
+function restartTickInterval() {
+  clearInterval(tickTimer);
+  tickTimer = setInterval(tick, getCurrentTickMs());
+}
+
 // ── Game loop ───────────────────────────────────────────────────────
 function start() {
   if (started) return;
   started = true;
   hideMessage();
-  tickTimer = setInterval(tick, TICK_MS);
+  tickTimer = setInterval(tick, TICK_MS_START);
   countdownTimer = setInterval(() => {
     timeLeft--;
     updateHud();
@@ -347,6 +358,7 @@ function tick() {
     const points = getMultiplier();
     score = Math.round((score + points) * 100) / 100;
     totalScore = Math.round((totalScore + points) * 100) / 100;
+    restartTickInterval();
     updateHud();
     placeFood();
   } else {
@@ -357,12 +369,13 @@ function tick() {
 }
 
 function endRound() {
-  // Snake dies but timer keeps going — total keeps accumulating, multiplier resets
+  // Snake dies but timer keeps going — total keeps accumulating, multiplier and speed reset
   score = 0;
   foodEaten = 0;
   snake = [{ x: 10, y: 10 }];
   dir = { x: 1, y: 0 };
   nextDir = { x: 1, y: 0 };
+  restartTickInterval();
   placeFood();
   updateHud();
   draw();
@@ -384,6 +397,7 @@ function restartRound() {
     snake = [{ x: 10, y: 10 }];
     dir = { x: 1, y: 0 };
     nextDir = { x: 1, y: 0 };
+    restartTickInterval();
     placeFood();
     updateHud();
     draw();

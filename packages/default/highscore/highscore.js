@@ -31,7 +31,8 @@ function main(args) {
       return { body: { error: 'Invalid username or score' } };
     }
 
-    const scores = loadScores();
+    // const scores = loadScores();
+    const scores = [];
 
     const existing = scores.find(e => e.username === username);
     if (existing) {
@@ -44,7 +45,7 @@ function main(args) {
 
     scores.sort((a, b) => b.score - a.score || a.username.localeCompare(b.username));
     scores.length = Math.min(scores.length, MAX_ENTRIES);
-    saveScores(scores);
+    //saveScores(scores);
 
     return { body: { ok: true } };
   }
